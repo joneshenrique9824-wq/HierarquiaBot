@@ -26,17 +26,27 @@ const {
   ROLE_PARM
 } = process.env;
 
-// ================= WEB (RAILWAY KEEP ALIVE) =================
+// ================= DEBUG TOKEN =================
+console.log("🔐 TOKEN carregado?", !!TOKEN);
+console.log("📏 TAMANHO TOKEN:", TOKEN?.length);
+
+// ================= VALIDAÇÃO =================
+if (!TOKEN) {
+  console.error("❌ TOKEN NÃO DEFINIDO NO RAILWAY");
+  process.exit(1);
+}
+
+// ================= WEB (RAILWAY) =================
 const app = express();
 app.get("/", (_, res) => res.send("Bot online 🔥"));
-app.listen(3000, () => console.log("🌐 Web ligado"));
+app.listen(3000, () => console.log("🌐 Web server ativo"));
 
 // ================= CLIENT =================
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ================= BANCO (MEMÓRIA) =================
+// ================= BANCO =================
 const banco = {
   RESP: [],
   AUXRESP: [],
@@ -88,14 +98,13 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
-// ================= GERAR TEXTO =================
+// ================= GERAR HIERARQUIA =================
 async function gerarHierarquia(guild) {
   await guild.members.fetch();
 
   let texto = "";
 
   for (const c of CARGOS) {
-
     const membrosRole = guild.members.cache.filter(m =>
       c.role && m.roles.cache.has(c.role)
     );
@@ -157,16 +166,13 @@ client.once("clientReady", async () => {
 
 // ================= INTERAÇÕES =================
 client.on("interactionCreate", async i => {
-
   if (!i.isChatInputCommand()) return;
 
-  // PAINEL
   if (i.commandName === "painel") {
     await enviarPainel(i.guild);
     return i.reply({ content: "✅ Painel criado", ephemeral: true });
   }
 
-  // ADD
   if (i.commandName === "addcargo") {
     const cargo = i.options.getString("cargo").toUpperCase();
     const user = i.options.getUser("pessoa");
@@ -182,7 +188,6 @@ client.on("interactionCreate", async i => {
     return i.reply({ content: "✅ Adicionado", ephemeral: true });
   }
 
-  // REMOVE
   if (i.commandName === "removercargo") {
     const cargo = i.options.getString("cargo").toUpperCase();
     const user = i.options.getUser("pessoa");
