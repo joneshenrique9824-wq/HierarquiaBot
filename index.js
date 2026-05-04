@@ -14,34 +14,14 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
-const ROLE_RESP = process.env.ROLE_RESP;
-const ROLE_AUXRESP = process.env.ROLE_AUXRESP;
-const ROLE_DIR = process.env.ROLE_DIR;
-const ROLE_VD = process.env.ROLE_VD;
-const ROLE_SUP = process.env.ROLE_SUP;
-const ROLE_COD = process.env.ROLE_COD;
-const ROLE_MED = process.env.ROLE_MED;
-const ROLE_ENF = process.env.ROLE_ENF;
-const ROLE_PARM = process.env.ROLE_PARM;
-
-// ================= DEBUG =================
-console.log("🔐 TOKEN EXISTE?", !!TOKEN);
-console.log("📏 TAMANHO TOKEN:", TOKEN?.length);
-
-// ================= BLOQUEIO SE TOKEN ERRADO =================
-if (!TOKEN || TOKEN.length < 50) {
-  console.error("❌ TOKEN INVÁLIDO OU NÃO CONFIGURADO");
-  process.exit(1);
-}
-
 // ================= WEB =================
 const app = express();
 app.get("/", (_, res) => res.send("Bot online 🔥"));
-app.listen(3000, () => console.log("🌐 Web server ativo"));
+app.listen(3000);
 
 // ================= CLIENT =================
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+  intents: [GatewayIntentBits.Guilds]
 });
 
 // ================= BANCO =================
@@ -59,62 +39,48 @@ const banco = {
 
 // ================= CARGOS =================
 const CARGOS = [
-  { nome: "👑 RESPONSÁVEL DO HP", role: ROLE_RESP, key: "RESP" },
-  { nome: "🩺 AUX. RESPONSÁVEL DO HP", role: ROLE_AUXRESP, key: "AUXRESP" },
-  { nome: "🏛️ DIRETORIA", role: ROLE_DIR, key: "DIR" },
-  { nome: "📌 VICE DIRETORIA", role: ROLE_VD, key: "VD" },
-  { nome: "🔱 SUPERVISÃO", role: ROLE_SUP, key: "SUP" },
-  { nome: "📊 COORDENAÇÃO", role: ROLE_COD, key: "COD" },
-  { nome: "💉 MÉDICOS", role: ROLE_MED, key: "MED" },
-  { nome: "🩹 ENFERMEIROS", role: ROLE_ENF, key: "ENF" },
-  { nome: "🚑 PARAMÉDICOS", role: ROLE_PARM, key: "PARM" }
+  { nome: "👑 RESPONSÁVEL DO HP", key: "RESP" },
+  { nome: "🩺 AUX. RESPONSÁVEL DO HP", key: "AUXRESP" },
+  { nome: "🏛️ DIRETORIA", key: "DIR" },
+  { nome: "📌 VICE DIRETORIA", key: "VD" },
+  { nome: "🔱 SUPERVISÃO", key: "SUP" },
+  { nome: "📊 COORDENAÇÃO", key: "COD" },
+  { nome: "💉 MÉDICOS", key: "MED" },
+  { nome: "🩹 ENFERMEIROS", key: "ENF" },
+  { nome: "🚑 PARAMÉDICOS", key: "PARM" }
 ];
 
 // ================= COMANDOS =================
 const commands = [
   new SlashCommandBuilder()
     .setName("painel")
-    .setDescription("Criar painel de cargos"),
+    .setDescription("Criar painel"),
 
   new SlashCommandBuilder()
     .setName("addcargo")
-    .setDescription("Adicionar pessoa ao cargo")
+    .setDescription("Adicionar pessoa")
     .addStringOption(o =>
       o.setName("cargo").setRequired(true))
-    .addUserOption(o =>
-      o.setName("pessoa").setRequired(true)),
+    .addStringOption(o =>
+      o.setName("nome").setDescription("Nome + tag").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("removercargo")
-    .setDescription("Remover pessoa do cargo")
+    .setDescription("Remover pessoa")
     .addStringOption(o =>
       o.setName("cargo").setRequired(true))
-    .addUserOption(o =>
-      o.setName("pessoa").setRequired(true))
-
+    .addStringOption(o =>
+      o.setName("nome").setRequired(true))
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 // ================= GERAR =================
-async function gerarHierarquia(guild) {
-  await guild.members.fetch();
-
+function gerar() {
   let texto = "";
 
   for (const c of CARGOS) {
-    const membrosRole = guild.members.cache.filter(m =>
-      c.role && m.roles.cache.has(c.role)
-    );
-
-    const manual = banco[c.key].map(id => `<@${id}>`);
-
-    const lista = [
-      ...new Set([
-        ...membrosRole.map(m => `<@${m.id}>`),
-        ...manual
-      ])
-    ];
+    const lista = banco[c.key];
 
     texto += `\n${c.nome}\n`;
     texto += lista.length
@@ -127,8 +93,8 @@ async function gerarHierarquia(guild) {
 }
 
 // ================= EMBED =================
-async function criarEmbed(guild) {
-  const texto = await gerarHierarquia(guild);
+function criarEmbed() {
+  const texto = gerar();
 
   return new EmbedBuilder()
     .setColor("Blue")
@@ -140,26 +106,21 @@ async function criarEmbed(guild) {
 // ================= ENVIAR =================
 async function enviarPainel(guild) {
   const canal = guild.channels.cache.get(CHANNEL_ID);
-  if (!canal) return console.log("❌ Canal não encontrado");
+  if (!canal) return;
 
-  const embed = await criarEmbed(guild);
+  const embed = criarEmbed();
 
-  await canal.send({
-    embeds: [embed],
-    allowedMentions: { parse: [] }
-  });
+  await canal.send({ embeds: [embed] });
 }
 
 // ================= READY =================
 client.once("clientReady", async () => {
-  console.log(`🔥 Logado como ${client.user.tag}`);
+  console.log(`🔥 ${client.user.tag} online`);
 
   await rest.put(
     Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
     { body: commands }
   );
-
-  console.log("✅ Comandos registrados");
 });
 
 // ================= INTERAÇÕES =================
@@ -173,24 +134,21 @@ client.on("interactionCreate", async i => {
 
   if (i.commandName === "addcargo") {
     const cargo = i.options.getString("cargo").toUpperCase();
-    const user = i.options.getUser("pessoa");
+    const nome = i.options.getString("nome");
 
     if (!banco[cargo]) {
       return i.reply({ content: "❌ Cargo inválido", ephemeral: true });
     }
 
-    if (!banco[cargo].includes(user.id)) {
-      banco[cargo].push(user.id);
-    }
-
+    banco[cargo].push(nome);
     return i.reply({ content: "✅ Adicionado", ephemeral: true });
   }
 
   if (i.commandName === "removercargo") {
     const cargo = i.options.getString("cargo").toUpperCase();
-    const user = i.options.getUser("pessoa");
+    const nome = i.options.getString("nome");
 
-    banco[cargo] = banco[cargo].filter(id => id !== user.id);
+    banco[cargo] = banco[cargo].filter(x => x !== nome);
     return i.reply({ content: "✅ Removido", ephemeral: true });
   }
 });
