@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import {
   Client,
@@ -10,33 +9,32 @@ import {
 } from "discord.js";
 
 // ================= CONFIG =================
-const {
-  TOKEN,
-  CLIENT_ID,
-  GUILD_ID,
-  CHANNEL_ID,
-  ROLE_RESP,
-  ROLE_AUXRESP,
-  ROLE_DIR,
-  ROLE_VD,
-  ROLE_SUP,
-  ROLE_COD,
-  ROLE_MED,
-  ROLE_ENF,
-  ROLE_PARM
-} = process.env;
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+const CHANNEL_ID = process.env.CHANNEL_ID;
 
-// ================= DEBUG TOKEN =================
-console.log("🔐 TOKEN carregado?", !!TOKEN);
+const ROLE_RESP = process.env.ROLE_RESP;
+const ROLE_AUXRESP = process.env.ROLE_AUXRESP;
+const ROLE_DIR = process.env.ROLE_DIR;
+const ROLE_VD = process.env.ROLE_VD;
+const ROLE_SUP = process.env.ROLE_SUP;
+const ROLE_COD = process.env.ROLE_COD;
+const ROLE_MED = process.env.ROLE_MED;
+const ROLE_ENF = process.env.ROLE_ENF;
+const ROLE_PARM = process.env.ROLE_PARM;
+
+// ================= DEBUG =================
+console.log("🔐 TOKEN EXISTE?", !!TOKEN);
 console.log("📏 TAMANHO TOKEN:", TOKEN?.length);
 
-// ================= VALIDAÇÃO =================
-if (!TOKEN) {
-  console.error("❌ TOKEN NÃO DEFINIDO NO RAILWAY");
+// ================= BLOQUEIO SE TOKEN ERRADO =================
+if (!TOKEN || TOKEN.length < 50) {
+  console.error("❌ TOKEN INVÁLIDO OU NÃO CONFIGURADO");
   process.exit(1);
 }
 
-// ================= WEB (RAILWAY) =================
+// ================= WEB =================
 const app = express();
 app.get("/", (_, res) => res.send("Bot online 🔥"));
 app.listen(3000, () => console.log("🌐 Web server ativo"));
@@ -82,23 +80,23 @@ const commands = [
     .setName("addcargo")
     .setDescription("Adicionar pessoa ao cargo")
     .addStringOption(o =>
-      o.setName("cargo").setDescription("Ex: SUP").setRequired(true))
+      o.setName("cargo").setRequired(true))
     .addUserOption(o =>
-      o.setName("pessoa").setDescription("Usuário").setRequired(true)),
+      o.setName("pessoa").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("removercargo")
     .setDescription("Remover pessoa do cargo")
     .addStringOption(o =>
-      o.setName("cargo").setDescription("Ex: SUP").setRequired(true))
+      o.setName("cargo").setRequired(true))
     .addUserOption(o =>
-      o.setName("pessoa").setDescription("Usuário").setRequired(true))
+      o.setName("pessoa").setRequired(true))
 
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
-// ================= GERAR HIERARQUIA =================
+// ================= GERAR =================
 async function gerarHierarquia(guild) {
   await guild.members.fetch();
 
@@ -109,18 +107,18 @@ async function gerarHierarquia(guild) {
       c.role && m.roles.cache.has(c.role)
     );
 
-    const membrosManual = banco[c.key].map(id => `<@${id}>`);
+    const manual = banco[c.key].map(id => `<@${id}>`);
 
-    const listaFinal = [
+    const lista = [
       ...new Set([
         ...membrosRole.map(m => `<@${m.id}>`),
-        ...membrosManual
+        ...manual
       ])
     ];
 
     texto += `\n${c.nome}\n`;
-    texto += listaFinal.length
-      ? listaFinal.map(x => `• ${x}`).join("\n")
+    texto += lista.length
+      ? lista.map(x => `• ${x}`).join("\n")
       : "(vazio)";
     texto += "\n";
   }
@@ -192,12 +190,7 @@ client.on("interactionCreate", async i => {
     const cargo = i.options.getString("cargo").toUpperCase();
     const user = i.options.getUser("pessoa");
 
-    if (!banco[cargo]) {
-      return i.reply({ content: "❌ Cargo inválido", ephemeral: true });
-    }
-
     banco[cargo] = banco[cargo].filter(id => id !== user.id);
-
     return i.reply({ content: "✅ Removido", ephemeral: true });
   }
 });
